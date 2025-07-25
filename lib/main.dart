@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'providers/endpoint_provider.dart';
 import 'providers/mnemonic_provider.dart';
 import 'providers/account_provider.dart';
+import 'providers/balance_provider.dart';
 import 'screens/main_tabs_screen.dart';
 
 void main() {
@@ -12,6 +13,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => EndpointProvider()),
         ChangeNotifierProvider(create: (_) => MnemonicProvider()),
         ChangeNotifierProvider(create: (_) => AccountProvider()),
+        ChangeNotifierProvider(create: (_) => BalanceProvider()),
       ],
       child: const MyApp(),
     ),

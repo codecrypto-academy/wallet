@@ -15,9 +15,11 @@ class _AddMnemonicScreenState extends State<AddMnemonicScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _mnemonicController = TextEditingController();
   String _generatedMnemonic = '';
   bool _isLoading = false;
   bool _showPassword = false;
+  bool _isCustomMnemonic = false;
 
   @override
   void initState() {
@@ -29,13 +31,51 @@ class _AddMnemonicScreenState extends State<AddMnemonicScreen> {
   void dispose() {
     _nameController.dispose();
     _passwordController.dispose();
+    _mnemonicController.dispose();
     super.dispose();
   }
 
   void _generateMnemonic() {
     setState(() {
       _generatedMnemonic = bip39.generateMnemonic();
+      _mnemonicController.text = _generatedMnemonic;
+      _isCustomMnemonic = false;
     });
+  }
+
+  void _toggleCustomMnemonic() {
+    setState(() {
+      _isCustomMnemonic = !_isCustomMnemonic;
+      if (_isCustomMnemonic) {
+        _mnemonicController.text = _generatedMnemonic;
+      } else {
+        _generatedMnemonic = _mnemonicController.text;
+      }
+    });
+  }
+
+  void _validateMnemonic() {
+    final mnemonic = _mnemonicController.text.trim();
+    if (bip39.validateMnemonic(mnemonic)) {
+      setState(() {
+        _generatedMnemonic = mnemonic;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Mnemonic válido'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Mnemonic inválido. Verifica que tenga 12, 15, 18, 21 o 24 palabras válidas',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> _saveMnemonic() async {
@@ -51,7 +91,9 @@ class _AddMnemonicScreenState extends State<AddMnemonicScreen> {
       final mnemonicProvider = context.read<MnemonicProvider>();
 
       final newMnemonic = Mnemonic(
-        mnemonic: _generatedMnemonic,
+        mnemonic: _isCustomMnemonic
+            ? _mnemonicController.text.trim()
+            : _generatedMnemonic,
         password: _passwordController.text.trim(),
         name: _nameController.text.trim(),
         createdAt: DateTime.now(),
@@ -107,44 +149,113 @@ class _AddMnemonicScreenState extends State<AddMnemonicScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Mnemonic Generado:',
-                            style: TextStyle(
+                          Text(
+                            _isCustomMnemonic
+                                ? 'Mnemonic Personalizado:'
+                                : 'Mnemonic Generado:',
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          IconButton(
-                            onPressed: _generateMnemonic,
-                            icon: const Icon(Icons.refresh),
-                            tooltip: 'Generar nuevo mnemonic',
+                          Row(
+                            children: [
+                              IconButton(
+                                onPressed: _toggleCustomMnemonic,
+                                icon: Icon(
+                                  _isCustomMnemonic
+                                      ? Icons.auto_awesome
+                                      : Icons.edit,
+                                ),
+                                tooltip: _isCustomMnemonic
+                                    ? 'Usar generación automática'
+                                    : 'Editar manualmente',
+                              ),
+                              IconButton(
+                                onPressed: _generateMnemonic,
+                                icon: const Icon(Icons.refresh),
+                                tooltip: 'Generar nuevo mnemonic',
+                              ),
+                            ],
                           ),
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.grey[300]!),
+                      if (_isCustomMnemonic) ...[
+                        // Campo editable para mnemonic personalizado
+                        TextFormField(
+                          controller: _mnemonicController,
+                          maxLines: 3,
+                          decoration: InputDecoration(
+                            hintText:
+                                'Ingresa tu frase mnemotécnica (12, 15, 18, 21 o 24 palabras)',
+                            border: const OutlineInputBorder(),
+                            suffixIcon: IconButton(
+                              onPressed: _validateMnemonic,
+                              icon: const Icon(Icons.check_circle),
+                              tooltip: 'Validar mnemonic',
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'El mnemonic es requerido';
+                            }
+                            if (!bip39.validateMnemonic(value.trim())) {
+                              return 'Mnemonic inválido. Debe tener 12, 15, 18, 21 o 24 palabras válidas';
+                            }
+                            return null;
+                          },
                         ),
-                        child: SelectableText(
-                          _generatedMnemonic,
-                          style: const TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 14,
+                      ] else ...[
+                        // Visualización del mnemonic generado
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.grey[300]!),
+                          ),
+                          child: SelectableText(
+                            _generatedMnemonic,
+                            style: const TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 14,
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                       const SizedBox(height: 8),
                       Text(
-                        '${_generatedMnemonic.split(' ').length} palabras',
+                        '${(_isCustomMnemonic ? _mnemonicController.text : _generatedMnemonic).split(' ').length} palabras',
                         style: TextStyle(color: Colors.grey[600], fontSize: 12),
                       ),
                     ],
                   ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Texto de ayuda
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _isCustomMnemonic
+                            ? 'Modo manual: Ingresa tu propia frase mnemotécnica. Usa el botón de validación para verificar que sea correcta.'
+                            : 'Modo automático: Se genera una frase mnemotécnica aleatoria y segura. Puedes cambiar a modo manual para ingresar tu propia frase.',
+                        style: TextStyle(fontSize: 12, color: Colors.blue[700]),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 16),

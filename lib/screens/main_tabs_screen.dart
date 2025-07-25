@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'endpoints_list_screen.dart';
 import 'mnemonics_list_screen.dart';
+import 'balances_list_screen.dart';
 
 class MainTabsScreen extends StatefulWidget {
   const MainTabsScreen({super.key});
@@ -16,6 +17,7 @@ class _MainTabsScreenState extends State<MainTabsScreen> {
     HomeTab(),
     EndpointsListScreen(),
     MnemonicsListScreen(),
+    BalancesListScreen(),
     SettingsTab(),
   ];
 
@@ -37,6 +39,10 @@ class _MainTabsScreenState extends State<MainTabsScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.security),
             label: 'Mnemonics',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.account_balance_wallet),
+            label: 'Balances',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings),

@@ -60,7 +60,7 @@ class _SendTransactionScreenState extends State<SendTransactionScreen> {
     }
   }
 
-  Future<void> _sendTransaction() async {
+  Future<void> _sendTx() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -80,23 +80,116 @@ class _SendTransactionScreenState extends State<SendTransactionScreen> {
     });
 
     try {
-      // Enviar transacción
-      final result = await _transactionService.sendTransaction(
-        fromAccount: widget.account,
-        toAddress: _toAddressController.text.trim(),
-        amount: _amountController.text.trim(),
-        endpoint: _selectedEndpoint!,
+      // Preparar transacción para envío
+      final result = await _transactionService.sendTx(
+        widget.account.address,
+        widget.account,
+        _toAddressController.text.trim(),
+        _amountController.text.trim(),
+        _selectedEndpoint!,
       );
 
-      if (result['success'] == true) {
+      if (result.isNotEmpty) {
+        // Mostrar diálogo de confirmación
+        if (mounted) {
+          _showConfirmationDialog({
+            'transactionData': result,
+            'fromAddress': widget.account.address,
+            'toAddress': _toAddressController.text.trim(),
+            'amount': _amountController.text.trim(),
+            'endpoint': _selectedEndpoint!.name,
+          });
+        }
+      } else {
+        throw Exception(result);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error preparando transacción: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _showConfirmationDialog(Map<String, dynamic> transactionData) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmar Transacción'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('¿Estás seguro de que quieres enviar esta transacción?'),
+            const SizedBox(height: 16),
+            Text('Desde: ${widget.account.address}'),
+            Text('A: ${_toAddressController.text.trim()}'),
+            Text('Cantidad: ${_amountController.text.trim()} ETH'),
+            Text('Endpoint: ${_selectedEndpoint!.name}'),
+            const SizedBox(height: 16),
+            const Text(
+              '⚠️ ADVERTENCIA: Esta acción no se puede deshacer.',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _sendSignedTransaction(transactionData);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Confirmar y Enviar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _sendSignedTransaction(
+    Map<String, dynamic> transactionData,
+  ) async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Enviar transacción
+      final result = await _transactionService.sendTx(
+        widget.account.address,
+        widget.account,
+        _toAddressController.text.trim(),
+        _amountController.text.trim(),
+        _selectedEndpoint!,
+      );
+
+      if (result.isNotEmpty) {
         // Guardar transacción en base de datos
         final transaction = Transaction(
           accountId: widget.account.id!,
           fromAddress: widget.account.address,
           toAddress: _toAddressController.text.trim(),
           amount: _amountController.text.trim(),
-          txHash: result['txHash'],
-          status: result['status'],
+          status: '1',
+          txHash: result,
           createdAt: DateTime.now(),
         );
 
@@ -105,14 +198,14 @@ class _SendTransactionScreenState extends State<SendTransactionScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Transacción enviada: ${result['txHash']}'),
+              content: Text('Transacción enviada: $result'),
               backgroundColor: Colors.green,
             ),
           );
           Navigator.pop(context, true);
         }
       } else {
-        throw Exception(result['error']);
+        throw Exception(result);
       }
     } catch (e) {
       if (mounted) {
@@ -255,7 +348,7 @@ class _SendTransactionScreenState extends State<SendTransactionScreen> {
 
               // Botón enviar
               ElevatedButton(
-                onPressed: _isLoading ? null : _sendTransaction,
+                onPressed: _isLoading ? null : _sendTx,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   backgroundColor: Colors.green,

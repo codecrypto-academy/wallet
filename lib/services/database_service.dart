@@ -5,6 +5,7 @@ import '../models/endpoint.dart';
 import '../models/mnemonic.dart';
 import '../models/account.dart';
 import '../models/transaction.dart';
+import '../models/balance.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -27,7 +28,7 @@ class DatabaseService {
 
       return await sqflite.openDatabase(
         path,
-        version: 5,
+        version: 6,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       );
@@ -95,6 +96,23 @@ class DatabaseService {
         )
       ''');
       debugPrint('Tabla transactions creada');
+
+      // Tabla balances
+      await db.execute('''
+        CREATE TABLE balances(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          mnemonicId INTEGER NOT NULL,
+          accountId INTEGER NOT NULL,
+          endpointId INTEGER NOT NULL,
+          balance TEXT NOT NULL,
+          symbol TEXT NOT NULL,
+          lastUpdated INTEGER NOT NULL,
+          FOREIGN KEY (mnemonicId) REFERENCES mnemonics (id) ON DELETE CASCADE,
+          FOREIGN KEY (accountId) REFERENCES accounts (id) ON DELETE CASCADE,
+          FOREIGN KEY (endpointId) REFERENCES endpoints (id) ON DELETE CASCADE
+        )
+      ''');
+      debugPrint('Tabla balances creada');
     } catch (e) {
       debugPrint('Error creando tablas: $e');
       rethrow;
@@ -172,6 +190,25 @@ class DatabaseService {
           WHERE derivationPath IS NULL
         ''');
         debugPrint('Columna derivationPath agregada a tabla accounts');
+      }
+
+      if (oldVersion < 6) {
+        // Agregar tabla balances si no existe
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS balances(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mnemonicId INTEGER NOT NULL,
+            accountId INTEGER NOT NULL,
+            endpointId INTEGER NOT NULL,
+            balance TEXT NOT NULL,
+            symbol TEXT NOT NULL,
+            lastUpdated INTEGER NOT NULL,
+            FOREIGN KEY (mnemonicId) REFERENCES mnemonics (id) ON DELETE CASCADE,
+            FOREIGN KEY (accountId) REFERENCES accounts (id) ON DELETE CASCADE,
+            FOREIGN KEY (endpointId) REFERENCES endpoints (id) ON DELETE CASCADE
+          )
+        ''');
+        debugPrint('Tabla balances agregada en upgrade');
       }
     } catch (e) {
       debugPrint('Error en upgrade de base de datos: $e');
@@ -431,6 +468,124 @@ class DatabaseService {
     } catch (e) {
       debugPrint('Error obteniendo siguiente índice de derivación: $e');
       return 0;
+    }
+  }
+
+  // ========== BALANCES OPERATIONS ==========
+
+  // Insertar un nuevo balance
+  Future<int> insertBalance(Balance balance) async {
+    try {
+      final db = await database;
+      final id = await db.insert('balances', balance.toMap());
+      debugPrint('Balance insertado con ID: $id');
+      return id;
+    } catch (e) {
+      debugPrint('Error insertando balance: $e');
+      rethrow;
+    }
+  }
+
+  // Obtener todos los balances
+  Future<List<Balance>> getBalances() async {
+    try {
+      final db = await database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'balances',
+        orderBy: 'lastUpdated DESC',
+      );
+      final balances = List.generate(
+        maps.length,
+        (i) => Balance.fromMap(maps[i]),
+      );
+      debugPrint('Balances obtenidos: ${balances.length}');
+      return balances;
+    } catch (e) {
+      debugPrint('Error obteniendo balances: $e');
+      rethrow;
+    }
+  }
+
+  // Obtener balances por cuenta
+  Future<List<Balance>> getBalancesByAccount(int accountId) async {
+    try {
+      final db = await database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'balances',
+        where: 'accountId = ?',
+        whereArgs: [accountId],
+        orderBy: 'lastUpdated DESC',
+      );
+      final balances = List.generate(
+        maps.length,
+        (i) => Balance.fromMap(maps[i]),
+      );
+      debugPrint(
+        'Balances obtenidos para account $accountId: ${balances.length}',
+      );
+      return balances;
+    } catch (e) {
+      debugPrint('Error obteniendo balances por account: $e');
+      rethrow;
+    }
+  }
+
+  // Obtener balances por mnemonic
+  Future<List<Balance>> getBalancesByMnemonic(int mnemonicId) async {
+    try {
+      final db = await database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'balances',
+        where: 'mnemonicId = ?',
+        whereArgs: [mnemonicId],
+        orderBy: 'lastUpdated DESC',
+      );
+      final balances = List.generate(
+        maps.length,
+        (i) => Balance.fromMap(maps[i]),
+      );
+      debugPrint(
+        'Balances obtenidos para mnemonic $mnemonicId: ${balances.length}',
+      );
+      return balances;
+    } catch (e) {
+      debugPrint('Error obteniendo balances por mnemonic: $e');
+      rethrow;
+    }
+  }
+
+  // Actualizar un balance
+  Future<int> updateBalance(Balance balance) async {
+    try {
+      final db = await database;
+      final result = await db.update(
+        'balances',
+        balance.toMap(),
+        where: 'id = ?',
+        whereArgs: [balance.id],
+      );
+      debugPrint('Balance actualizado: $result filas afectadas');
+      return result;
+    } catch (e) {
+      debugPrint('Error actualizando balance: $e');
+      rethrow;
+    }
+  }
+
+  // Eliminar un balance
+  Future<int> deleteBalance(int id) async {
+    try {
+      final db = await database;
+      final result = await db.delete(
+        'balances',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      debugPrint('Balance eliminado: $result filas afectadas');
+      return result;
+    } catch (e) {
+      debugPrint('Error eliminando balance: $e');
+      rethrow;
     }
   }
 

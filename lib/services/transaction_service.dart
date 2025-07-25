@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:web3dart/crypto.dart';
+import 'package:web3dart/web3dart.dart' as web3;
+import 'package:hex/hex.dart';
 import 'dart:convert';
 import '../models/transaction.dart';
 import '../models/account.dart';
 import '../models/endpoint.dart';
 import 'database_service.dart';
+import 'dart:typed_data';
 
 class TransactionService {
   static final TransactionService _instance = TransactionService._internal();
@@ -14,57 +18,54 @@ class TransactionService {
 
   TransactionService._internal();
 
-  // Enviar transacción a través de endpoint
-  Future<Map<String, dynamic>> sendTransaction({
-    required Account fromAccount,
-    required String toAddress,
-    required String amount,
-    required Endpoint endpoint,
-  }) async {
-    try {
-      debugPrint(
-        'Enviando transacción desde ${fromAccount.address} a $toAddress',
-      );
-      debugPrint('Endpoint: ${endpoint.url}');
+  Future<String> sendTx(
+    String address,
+    Account fromAccount,
+    String toAddress,
+    String amount,
+    Endpoint endpoint,
+  ) async {
+    final httpClient = http.Client();
+    final ethClient = web3.Web3Client(endpoint.url, httpClient);
 
-      // Preparar datos de la transacción
-      final transactionData = {
-        'from': fromAccount.address,
-        'to': toAddress,
-        'amount': amount,
-        'privateKey': fromAccount.privateKey,
-        'channelId': endpoint.chanId,
-      };
+    final web3.EthPrivateKey credentials = web3.EthPrivateKey.fromHex(
+      fromAccount.privateKey,
+    );
+    final web3.EthereumAddress senderAddress = credentials.address;
+    final web3.EthereumAddress receiverAddress = web3.EthereumAddress.fromHex(
+      toAddress,
+    );
+    final web3.EtherAmount amountToSend = web3.EtherAmount.fromInt(
+      web3.EtherUnit.ether,
+      int.parse(amount),
+    );
+    debugPrint('Amount To Send: $amountToSend');
+    final web3.EtherAmount gasPrice = await ethClient.getGasPrice();
+    debugPrint('Gas Price: $gasPrice');
+    final BigInt chainId = await ethClient.getChainId();
+    debugPrint('Chain ID: $chainId');
+    final transaction = web3.Transaction(
+      to: receiverAddress,
+      from: senderAddress,
+      value: amountToSend,
+      gasPrice: gasPrice,
+      maxGas: 21000,
+    );
 
-      // Enviar transacción al endpoint
-      final response = await http
-          .post(
-            Uri.parse(endpoint.url),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode(transactionData),
-          )
-          .timeout(const Duration(seconds: 30));
+    debugPrint('Transaction: $transaction');
 
-      debugPrint('Respuesta del endpoint: ${response.statusCode}');
-      debugPrint('Cuerpo de respuesta: ${response.body}');
+    final Uint8List signedRawTransactionBytes = await ethClient.signTransaction(
+      credentials,
+      transaction,
+      chainId: chainId.toInt(),
+    );
 
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-        return {
-          'success': true,
-          'txHash': responseData['txHash'] ?? 'unknown',
-          'status': 'pending',
-          'data': responseData,
-        };
-      } else {
-        throw Exception(
-          'Error del servidor: ${response.statusCode} - ${response.body}',
-        );
-      }
-    } catch (e) {
-      debugPrint('Error enviando transacción: $e');
-      return {'success': false, 'error': e.toString(), 'status': 'failed'};
-    }
+    final String transactionHash = await ethClient.sendRawTransaction(
+      signedRawTransactionBytes,
+    );
+
+    ethClient.dispose();
+    return transactionHash;
   }
 
   // Guardar transacción en base de datos
