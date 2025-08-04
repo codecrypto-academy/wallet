@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:my_flutter_lib/my_flutter_lib.dart';
+import 'package:bdd_lib/my_flutter_lib.dart';
 
 void main() {
   group('Database Tests', () {
@@ -26,8 +26,7 @@ void main() {
       // Create a new mnemonic
       final mnemonicId = await mnemonicRepo.createNewMnemonic(
         name: 'Test Wallet',
-        mnemonic:
-            'test test test test test test test test test test test test junk',
+        mnemonic: 'test test test test test test test test test test test junk',
         passphrase: 'test_passphrase',
         masterKey: 'test_master_key',
       );
@@ -41,9 +40,7 @@ void main() {
       expect(mnemonic!.name, equals('Test Wallet'));
       expect(
         mnemonic.mnemonic,
-        equals(
-          'test test test test test test test test test test test test junk',
-        ),
+        equals('test test test test test test test test test test test junk'),
       );
     });
 

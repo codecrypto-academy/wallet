@@ -62,4 +62,9 @@ class BalanceRepository {
   Future<List<Map<String, dynamic>>> getAllBalancesWithDetails() async {
     return await _databaseHelper.getAllBalancesWithDetails();
   }
+
+  /// Delete all balances from the database
+  Future<int> deleteAllBalances() async {
+    return await _databaseHelper.deleteAllBalances();
+  }
 }

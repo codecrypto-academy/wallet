@@ -224,6 +224,11 @@ class DatabaseHelper {
     return await db.insert('balances', balance.toMap());
   }
 
+  Future<int> deleteAllBalances() async {
+    final db = await database;
+    return await db.delete('balances');
+  }
+
   Future<List<Balance>> getAllBalances() async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query('balances');

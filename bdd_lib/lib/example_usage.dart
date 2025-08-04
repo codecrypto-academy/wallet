@@ -1,4 +1,4 @@
-import 'package:my_flutter_lib/my_flutter_lib.dart';
+import 'package:bdd_lib/my_flutter_lib.dart';
 
 /// Example usage of the database operations
 class ExampleUsage {
@@ -155,7 +155,7 @@ class ExampleUsage {
       final mnemonicId = await _mnemonicRepo.createNewMnemonic(
         name: 'Test Wallet',
         mnemonic:
-            'test test test test test test test test test test test test junk',
+            'test test test test test test test test test test test test test junk',
         passphrase: 'test_passphrase',
         masterKey: 'test_master_key',
       );
