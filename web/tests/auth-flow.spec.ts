@@ -127,6 +127,4 @@ test.describe('Ethereum Authentication Flow E2E', () => {
     expect(jwtAfterLogout).toBeNull();
     expect(addressAfterLogout).toBeNull();
   });
-
-
 });
