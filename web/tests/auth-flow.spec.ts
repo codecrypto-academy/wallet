@@ -50,7 +50,7 @@ test.describe('Ethereum Authentication Flow E2E', () => {
 
     // Simulate wallet signing by creating a signature with our test wallet
     const domain = 'ethereum-login-app.com';
-    const message = `${domain}${random}${timestamp}${serverAddress}`;
+    const message = `${random}`;
     const userSignature = await testWallet.signMessage(message);
 
     // Send the signature verification request

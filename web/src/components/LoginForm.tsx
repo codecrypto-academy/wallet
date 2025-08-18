@@ -88,17 +88,18 @@ const LoginForm: React.FC = () => {
     return () => {
       stopPolling();
     };
-  }, []);
+  }, [stopPolling]);
 
   const generateDeepLink = (request: LoginRequest) => {
     const params = new URLSearchParams({
+      txType: 'login',
       aleatorio: request.random,
       timestamp: request.timestamp.toString(),
       address: request.serverAddress,
       signature: request.signature,
     });
     
-    return `login://${request.domain}?${params.toString()}`;
+    return `tx://?${params.toString()}`;
   };
 
   if (isLoading) {
@@ -133,10 +134,13 @@ const LoginForm: React.FC = () => {
         <div className="text-center">
           <p className="text-sm text-gray-500 mb-2">Or copy the deep link:</p>
           <div className="bg-gray-100 p-3 rounded-md">
-            <code className="text-xs break-all text-gray-700">{deepLink}</code>
+          <code className="text-xs break-all text-gray-700">{deepLink}</code>
           </div>
         </div>
-        
+        <div>
+        <code className="text-xs break-all text-gray-700">{`xcrun simctl openurl booted "${deepLink}"`}</code>
+
+        </div>
         <div className="mt-6 text-center">
           <button
             onClick={() => {

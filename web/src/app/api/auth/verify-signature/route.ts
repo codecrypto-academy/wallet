@@ -17,6 +17,9 @@ export async function POST(request: NextRequest) {
   try {
     const body: VerifyRequest = await request.json();
     const { random, address, signature } = body;
+    console.log('random', random);
+    console.log('address', address);
+    console.log('signature', signature);
     
     await client.connect();
     const db = client.db('ethereum-login');
@@ -35,12 +38,14 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    
+    console.log('valie token exists');
     // Verify the signature
-    const message = `${loginRequest.domain}${random}${loginRequest.timestamp}${loginRequest.serverAddress}`;
+    // const message = `${loginRequest.domain}${random}${loginRequest.timestamp}${loginRequest.serverAddress}`;
+    const message = random; // Usar el valor real del random, no el string literal
     const recoveredAddress = ethers.verifyMessage(message, signature);
     
     if (recoveredAddress.toLowerCase() !== address.toLowerCase()) {
+      console.log('invalid signature');
       return NextResponse.json(
         { error: 'Invalid signature' },
         { status: 400 }
